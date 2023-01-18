@@ -1,0 +1,175 @@
+<html>
+<head>
+ <title>3D WebGL HW</title>
+</head>
+<body>
+ <canvas id="glCanvas" style="width:800px; height:800px;" />
+ <!-- type="notjs" makes it not get identified as javascript. -->
+ <script id="vertex-shader" type="notjs">
+    # version 300 es
+    precision mediump int;
+    in vec4 pos;
+    out float depth;
+    uniform int u_id;
+    uniform float u_time;
+
+    mat4 translate(vec3 t) {
+        return mat4( 1.0, 0.0, 0.0, 0,
+                      0.0, 1.0, 0.0, 0,
+                      0.0, 0.0, 1.0, 0,
+                      t.xyz, 1.0 );
+    }
+
+    mat4 projection(float l, float r, float b, float t, float n, float f) {
+        mat4 m = mat4(
+            2.0 / (r - l), 0.0, 0.0, -(r + l) / (r - l),
+            0.0, 2.0 / (t - b), 0.0, -(t + b) / (t - b),
+            0.0, 0.0, 2.0 / (f - n), -(f + n) / (f - n),
+            0.0, 0.0, 0.0, 1.0
+        );
+        return m;
+    }
+
+    void main() {
+        vec4 new_pos;
+        if(u_id==0){
+            new_pos = translate(vec3(0.0, -1.0, -1.0)) * pos;
+        }else{
+            // if there are other vertices those should be moved(such as turning around, changing size of it), set u_id 1, 2, ... and use this if function 
+        }
+        gl_Position = projection(-1.0, 1.0, -1.0, 1.0, -0.01, -10.0) * new_pos;
+        depth = gl_Position.z;
+    }
+ </script>
+ <script id="fragment-shader" type="notjs">
+    # version 300 es
+    precision mediump float;
+    in float depth;
+    out vec4 color_out;
+    uniform int u_id;
+    void main() {
+       if(u_id==0) color_out = vec4(vec3(1.0 - depth), 1.0);
+    }
+ </script>
+ <script type="text/javascript">
+    function createProgram( gl, vertexSrc, fragmentSrc ) {
+        let vshd = gl.createShader( gl.VERTEX_SHADER );
+        gl.shaderSource( vshd, vertexSrc );
+        gl.compileShader( vshd );
+        if (!gl.getShaderParameter( vshd, gl.COMPILE_STATUS ))
+            throw new Error( "Unable to compile shader: "+gl.getShaderInfoLog( vshd ));
+        
+        let fshd = gl.createShader( gl.FRAGMENT_SHADER );
+        gl.shaderSource( fshd, fragmentSrc );
+        gl.compileShader( fshd );
+        if (!gl.getShaderParameter( fshd, gl.COMPILE_STATUS ))
+            throw new Error( "Unable to compile shader: "+gl.getShaderInfoLog( fshd ));
+        
+        let prog = gl.createProgram();
+        gl.attachShader( prog, vshd );
+        gl.attachShader( prog, fshd );
+        gl.linkProgram( prog );
+        if (!gl.getProgramParameter( prog, gl.LINK_STATUS ))
+            throw new Error( "Unable to link program: "+gl.getProgramInfoLog( prog ));
+        return prog;
+    }
+
+    var c = document.getElementById("glCanvas");
+    var gl = c.getContext('webgl2');
+    if (!gl)
+        throw new Error("WebGL unsupported!");
+
+    // Create our shader program
+    var vs = document.querySelector("#vertex-shader").text.trim();
+    var fs = document.querySelector("#fragment-shader").text.trim();
+    var program = createProgram(gl, vs, fs);
+    gl.useProgram(program);
+
+    var room_vertices = [
+         0.8, 3.0, -2.0, // wall back
+        -3.0, 3.0, -2.0,
+        -3.0, -1.0, -2.0,
+        0.8, -1.0, -2.0,
+        0.8, 3.0, -2.0,
+        0.8, 3.0, -2.0,
+        0.8, 3.0, 2.0, // ceiling
+        0.8, 3.0, -2.0,
+        -3.0, 3.0, -2.0, // wall left
+        -3.0, 3.0, 2.0,
+        -3.0, -1.0, -2.0, 
+        -3.0, -1.0, 2.0,
+        -0.3, -1.0, -2.0, //stairs
+        -0.3, -1.0, 2.0,
+        -0.3, -0.8, -2.0,
+        -0.3, -0.8, 2.0,
+        0.25, -0.8, -2.0,
+        0.25, -0.8, 2.0,
+        0.25, -0.6, -2.0,
+        0.25, -0.6, 2.0,
+        0.8, -0.6, -2.0,
+        0.8, -0.6, 2.0,
+        0.8, -0.4, -2.0,
+        0.8, -0.4, 2.0,
+        2.9, -0.4, -2.0,
+        2.9, -0.4, 2.0,
+        2.9, -0.4, -1.8, // 通路入口 右
+        2.6, -0.4, -1.8,
+        2.9, 3.0, -1.8,
+        2.6, 3.0, -1.8,
+        2.6, -0.4, -1.8, // 通路
+        2.6, -0.4, -15.0,
+        2.6, 3.0, -1.8,
+        2.6, 3.0, -15.0,
+        1.1, 3.0, -15.0,
+        2.6, 3.0, -1.8,
+        1.1, 3.0, -1.8,
+        1.1, 3.0, -1.8, // 通路入口 左 手前
+        1.1, -0.4, -1.8,
+        0.8, 3.0, -1.8,
+        0.8, -0.4, -1.8,
+        0.8, 3.0, -2.0, // 通路入口 左 左側面 
+        0.8, -0.4, -2.0,
+        0.8, 3.0, -2.0,
+        0.8, 3.0, -2.0, // ceiling right
+        0.8, 3.0, 2.0,
+        2.9, 3.0, 2.0,
+        0.8, 3.0, -2.0,
+        2.9, 3.0, -2.0,
+        2.6, 3.0, -2.0, // 移動(点の移動)
+        2.6, -0.4, -2.0, // 通路 床
+        2.6, -0.4, -15.0,
+        2.6, -0.4, -2.0,
+        1.1, -0.4, -15.0,
+        1.1, -0.4, -2.0,
+    ];
+
+    var GroundBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, GroundBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(room_vertices), gl.STATIC_DRAW);
+
+    // Get and set vertex attribute
+    program.vertexPosAttrib = gl.getAttribLocation(program, 'pos');
+    gl.enableVertexAttribArray(program.vertexPosAttrib);
+    var u_time_loc = gl.getUniformLocation(program, "u_time"); // for animation
+    var u_id_loc = gl.getUniformLocation(program, "u_id"); // ramiel=0  ground=1
+    
+    function init(ms_since_page_loaded) {
+        // Clear screen
+        gl.clearColor(0.29, 0.68, 0.75, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.enable(gl.DEPTH_TEST);
+
+        gl.uniform1f( u_time_loc, ms_since_page_loaded * 0.001 );
+
+        // Draw Room
+        gl.uniform1i(u_id_loc, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, GroundBuffer);
+        gl.vertexAttribPointer(program.vertexPosAttrib, 3, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, room_vertices.length / 3);
+        
+        requestAnimationFrame(init);
+    }
+    window.onload = init(0);
+ </script>
+</body>
+</html>
